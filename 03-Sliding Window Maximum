@@ -1,0 +1,289 @@
+//Bruteforce Approach
+
+class Solution {
+    public int[] maxSlidingWindow(int[] arr, int k) {
+        // Total number of windows of size k
+        int totalSizeKWindows = arr.length - k + 1;
+
+        // Stores maximum element of each window
+        int[] windowMaxima = new int[totalSizeKWindows];
+
+        // Generate all subarrays
+        for (int start = 0; start < arr.length; start++) {
+            for (int end = start; end < arr.length; end++) {
+                // Current subarray size
+                int subarraySize = end - start + 1;
+
+                // Process only windows of exact size k
+                if (subarraySize == k) {
+                    // Find maximum element in the current window
+                    int windowMax = findMaxInWindow(arr, start, end);
+                    // Store the result for this window
+                    windowMaxima[start] = windowMax;
+                    // Move to the next window
+                    break;
+                }
+            }
+        }
+
+        return windowMaxima;
+    }
+
+    private int findMaxInWindow(int[] arr, int start, int end) {
+        int windowMax = Integer.MIN_VALUE;
+        int low = start, high = end;
+
+        while (low <= high) {
+            windowMax = Math.max(windowMax, Math.max(arr[low++], arr[high--]));
+        }
+
+        return windowMax;
+    }
+}
+
+
+
+//Better Approach
+
+class Solution {
+    public int[] maxSlidingWindow(int[] arr, int k) {
+        // Total number of windows of size k
+        int totalSizeKWindows = arr.length - k + 1;
+
+        // Stores the maximum value for each window
+        int[] windowMaxima = new int[totalSizeKWindows];
+
+        /*
+         * Max Heap storing pairs of:
+         * - index of the element
+         * - value of the element
+         *
+         * The heap is ordered by value in descending order,
+         * so the maximum element is always at the top.
+         *
+         * Important:
+         * - Indices are stored to identify and discard elements
+         *   that fall out of the current window, i.e., elements
+         *   that are part of previous windows.
+         */
+        Queue<int[]> maxHeap = new PriorityQueue<>( (pair1, pair2) -> Integer.compare(pair2[1], pair1[1]));
+
+        int windowStart = 0;
+        int windowEnd = 0;
+
+        /*
+         * Build the first window of size k.
+         * Insert all elements of the first window into the heap.
+         */
+        while (windowEnd < k) {
+            maxHeap.offer(new int[] { windowEnd, arr[windowEnd++] });
+        }
+
+        // The top of the heap gives the maximum for the first window
+        windowMaxima[windowStart] = maxHeap.peek()[1];
+
+        /*
+         * Slide the window:
+         * - Move windowStart forward
+         * - Add the new element entering the window to the heap
+         */
+        while (windowEnd < arr.length) {
+            windowStart++;
+
+            // Add the new element entering the window
+            maxHeap.offer(new int[] { windowEnd, arr[windowEnd] });
+
+            // Get the maximum element for the current window
+            windowMaxima[windowStart] = getMaxInWindow(maxHeap, windowStart);
+
+            windowEnd++;
+        }
+
+        return windowMaxima;
+    }
+
+    private int getMaxInWindow(Queue<int[]> maxHeap, int windowStart) {
+        /*
+         * The max heap always keeps the maximum element (by value)
+         * among all the elements currently stored in it.
+         *
+         * However, the element at the top of the heap may not
+         * necessarily belong to the current window.
+         * It could be part of a previous window.
+         *
+         * Therefore, before using the heap's top element,
+         * we remove all elements whose indices are smaller than
+         * windowStart, as they no longer belong to the current window.
+         *
+         * Once all outdated elements are removed, the element
+         * at the top of the heap is guaranteed to be the maximum
+         * element within the current window.
+         * ---------------------------------------------------------------
+         * Example:
+         *
+         * nums = [9, 3, 1, 2, 5], k = 2
+         *
+         * ---------------------------------------------------------------
+         * Window 1: indices [0 .. 1] → [9, 3]
+         *
+         * Heap after insertion:
+         * (9,0), (3,1)
+         *
+         * - Top = (9,0)
+         * - Index 0 is inside the window
+         * - Result[0] = 9
+         *
+         * ---------------------------------------------------------------
+         * Window 2: indices [1 .. 2] → [3, 1]
+         *
+         * Add (1,2)
+         *
+         * Heap now contains:
+         * (9,0), (3,1), (1,2)
+         *
+         * - Top = (9,0)
+         * - Index 0 < windowStart (1)
+         * - This element belongs to a previous window
+         * - REMOVE (9,0)
+         *
+         * New heap top:
+         * (3,1)
+         *
+         * - Index 1 is inside the window
+         * - Result[1] = 3
+         *
+         * ---------------------------------------------------------------
+         * Window 3: indices [2 .. 3] → [1, 2]
+         *
+         * Add (2,3)
+         *
+         * Heap now contains:
+         * (3,1), (2,3), (1,2)
+         *
+         * - Top = (3,1)
+         * - Index 1 < windowStart (2)
+         * - REMOVE (3,1)
+         *
+         * New heap top:
+         * (2,3)
+         *
+         * - Index 3 is inside the window
+         * - Result[2] = 2
+         *
+         * ---------------------------------------------------------------
+         * Window 4: indices [3 .. 4] → [2, 5]
+         *
+         * Add (5,4)
+         *
+         * Heap now contains:
+         * (5,4), (2,3), (1,2)
+         *
+         * - Top = (5,4)
+         * - Index 4 is inside the window
+         * - No removal needed
+         * - Result[3] = 5
+         *
+         * ---------------------------------------------------------------
+         * Key Takeaways:
+         *
+         * - The heap may store elements from older windows.
+         * - This approach uses lazy removal for elements in the heap. Elements are only removed 
+         *   when they impact the maximum value of the current sliding window. 
+         * - This guarantees correctness while avoiding unnecessary removals.
+         */
+        while (!maxHeap.isEmpty() && maxHeap.peek()[0] < windowStart) {
+            maxHeap.poll();
+        }
+
+        // The top element is the maximum in the current window
+        return maxHeap.peek()[1];
+    }
+}
+
+
+//Optimal Approach
+
+class Solution {
+    /*
+    * Intuition:
+    *
+    * The deque always contains only those elements that can still become
+    * the maximum in some future window.
+    *
+    * We keep elements that are smaller but to the RIGHT of the current maximum
+    * because they are potential candidates for the maximum when the current
+    * maximum (at the front of the deque) slides out of the window.
+    *
+    * Why can we safely remove smaller elements to the LEFT?
+    *
+    * If an element A is smaller than a newer element B and A appears to the
+    * left of B, then A can never be the maximum of any future window that
+    * contains B.
+    *
+    * Reason:
+    * - B is already larger than A, so B will always dominate A in any window
+    *   containing both.
+    * - B enters later and stays longer in future windows, while A will slide
+    *   out earlier.
+    * - Even if a newer element enters, it will either replace B (if larger)
+    *   or B will remain the maximum.
+    *
+    * Therefore, for as long as the current maximum remains inside the window,
+    * any smaller element to its left is useless. When the maximum slides out,
+    * the deque already contains the next best candidates from the right.
+    */
+    public int[] maxSlidingWindow(int[] arr, int k) {
+        int totalSizeKWindows = arr.length - k + 1;
+        int[] windowMaxima = new int[totalSizeKWindows];
+
+        Deque<Integer> deque = new ArrayDeque<>();
+
+        int windowStart = 0, windowEnd = 0;
+
+        // Process the first window separately
+        while (windowEnd < k) {
+            while (!deque.isEmpty() && (arr[windowEnd] > arr[deque.peekLast()])) {
+                deque.pollLast();
+            }
+
+            deque.offerLast(windowEnd++);
+        }
+
+        // The maximum for the first window
+        windowMaxima[windowStart] = arr[deque.peekFirst()];
+        // Process the second window and all subsequent windows
+        while (windowEnd < arr.length) {
+            windowStart++;
+            windowMaxima[windowStart] = findMaxInWindow(arr, windowStart, windowEnd, deque);
+            windowEnd++;
+        }
+
+        return windowMaxima;
+    }
+
+    private int findMaxInWindow(int[] arr, int windowStart, int windowEnd, Deque<Integer> deque) {
+        while (!deque.isEmpty() && arr[windowEnd] > arr[deque.peekLast()]) {
+            deque.pollLast();
+        }
+
+        deque.offerLast(windowEnd);
+
+        /*
+        * Since the sliding window moves by 1 position at each step,
+        * the maximum element, which is always at the front of the deque
+        * (because the deque is maintained in decreasing order), is the
+        * only element that can potentially fall out of the window.
+        * 
+        * As the left boundary of the window advances by 1 index, we need
+        * to check if the element at the front of the deque is outside the
+        * current window. If it is, we remove it to ensure the deque only
+        * contains indices within the current window.
+        * Ex: [5,3,4]
+        */
+        if (deque.peekFirst() < windowStart) {
+            deque.pollFirst();
+        }
+
+        return arr[deque.peekFirst()];
+    }
+}
