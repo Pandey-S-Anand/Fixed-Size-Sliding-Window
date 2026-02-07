@@ -1,0 +1,68 @@
+//Bruteforce Approach
+
+class Solution {
+    public double findMaxAverage(int[] arr, int k) {
+        // Stores the maximum average found so far
+        double maxAvgSubarray = Double.NEGATIVE_INFINITY;
+
+        // Generate all possible windows of length k
+        for (int start = 0; start < arr.length; start++) {
+            int sum = 0;
+            // Expand the subarray from 'start'
+            for (int end = start; end < arr.length; end++) {
+                sum += arr[end];
+
+                int subarrayLength = end - start + 1;
+
+                // Process only subarrays of exact length k
+                if (subarrayLength == k) {
+                    // Compute and compare average
+                    maxAvgSubarray = Math.max(maxAvgSubarray, getAvg(sum, k));
+                    break; // Move to the next starting index
+                }
+            }
+        }
+
+        return maxAvgSubarray;
+    }
+
+    private double getAvg(int sum, int length) {
+        return (double) sum / length;
+    }
+}
+
+
+//Optimal Approach
+
+class Solution {
+    public double findMaxAverage(int[] arr, int k) {
+        int windowStart = 0;
+        int windowEnd = 0;
+        int sum = 0;
+
+        // Build the first window of size k
+        while (windowEnd < k) {
+            sum += arr[windowEnd++];
+        }
+
+        // Average of the first window
+        double maxAvgSubarray = getAvg(sum, k);
+
+        // Slide the window across the array
+        while (windowEnd < arr.length) {
+            // Remove the element going out of the window
+            sum -= arr[windowStart++];
+            // Add the element entering the window
+            sum += arr[windowEnd++];
+
+            // Update the maximum average
+            maxAvgSubarray = Math.max(maxAvgSubarray, getAvg(sum, k));
+        }
+
+        return maxAvgSubarray;
+    }
+
+    private double getAvg(int sum, int length) {
+        return (double) sum / length;
+    }
+}
