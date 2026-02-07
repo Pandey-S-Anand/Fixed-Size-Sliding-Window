@@ -181,3 +181,136 @@ class Solution {
 
 //Optimal Approach
 
+class Solution {
+    public List<Integer> findAnagrams(String text, String pattern) {
+        // If pattern is longer than text, anagram is impossible
+        if (pattern.length() > text.length()) {
+            return Collections.emptyList();
+        }
+
+        List<Integer> startIndices = new ArrayList<>();
+
+        int windowStart = 0;
+        int windowEnd = 0;
+        int windowSize = pattern.length();
+
+        /*
+         * ------------------------------------------------------------
+         * What does patternFreqMap represent?
+         * ------------------------------------------------------------
+         * patternFreqMap keeps track of how many MORE times
+         * each character is still REQUIRED in the current window
+         * to form a valid anagram.
+         *
+         * Initially:
+         *   pattern = "aab"
+         *   map = {a=2, b=1}
+         *
+         * Interpretation:
+         * - a is required 2 more times
+         * - b is required 1 more time
+         */
+        Map<Character, Integer> patternFreqMap = new HashMap<>();
+
+        // Build frequency map from the pattern
+        for (int i = 0; i < pattern.length(); i++) {
+            char ch = pattern.charAt(i);
+            patternFreqMap.put(ch, patternFreqMap.getOrDefault(ch, 0) + 1);
+        }
+
+        /*
+         * Build the first window of size = pattern.length()
+         * Reduce frequency when pattern characters appear in window.
+         */
+        while (windowEnd < windowSize) {
+            char ch = text.charAt(windowEnd++);
+
+            if (patternFreqMap.containsKey(ch)) {
+                patternFreqMap.put(ch, patternFreqMap.get(ch) - 1);
+            }
+        }
+
+        // If all frequencies are zero → first window is an anagram
+        if (isAnagram(patternFreqMap)) {
+            startIndices.add(windowStart);
+        }
+
+        /*
+         * Slide the window across the text:
+         * - Character at windowStart leaves the window
+         * - Character at windowEnd enters the window
+         */
+        while (windowEnd < text.length()) {
+            /*
+             * ------------------------------------------------------------
+             * OUTGOING CHARACTER (leaving the window)
+             * ------------------------------------------------------------
+             * When a character leaves the window:
+             * - If it belongs to the pattern, we INCREASE its count.
+             *
+             * Why?
+             * - That character is no longer contributing to the current window.
+             * - We now REQUIRE one more occurrence of it again to form an anagram.
+             */
+            char outgoing = text.charAt(windowStart);
+            if (patternFreqMap.containsKey(outgoing)) {
+                patternFreqMap.put(outgoing, patternFreqMap.get(outgoing) + 1);
+            }
+
+            // Move the left boundary forward
+            windowStart++;
+
+            /*
+             * ------------------------------------------------------------
+             * INCOMING CHARACTER (entering the window)
+             * ------------------------------------------------------------
+             * When a character enters the window:
+             * - If it belongs to the pattern, we DECREASE its count.
+             *
+             * Why?
+             * - This character helps satisfy the anagram requirement.
+             */
+            char incoming = text.charAt(windowEnd);
+            if (patternFreqMap.containsKey(incoming)) {
+                patternFreqMap.put(incoming, patternFreqMap.get(incoming) - 1);
+            }
+
+            /*
+             * ------------------------------------------------------------
+             * IMPORTANT: What does NEGATIVE frequency mean?
+             * ------------------------------------------------------------
+             * - freq < 0 means the window has MORE occurrences of this
+             *   character than required by the pattern.
+             */
+            if (isAnagram(patternFreqMap)) {
+                startIndices.add(windowStart);
+            }
+
+            // Move the right boundary forward
+            windowEnd++;
+        }
+
+        return startIndices;
+    }
+
+    /**
+     * Checks whether the current window is an anagram.
+     *
+     * An anagram exists when:
+     * - All character requirements are fully satisfied.
+     * - i.e., all values in the frequency map are exactly zero.
+     *
+     * NOTE:
+     * - Negative values are allowed and simply indicate
+     *   extra occurrences of a character.
+     * - Any positive value means some character is still missing.
+     */
+    private boolean isAnagram(Map<Character, Integer> patternFreqMap) {
+        for (int count : patternFreqMap.values()) {
+            if (count != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+}
