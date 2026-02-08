@@ -1,0 +1,237 @@
+//Bruteforce Approach
+
+class Solution {
+    public long maximumSubarraySum(int[] arr, int k) {
+        long maxDistinctSubarraySum = 0L;
+
+        // Set to track distinct elements in the current subarray
+        Set<Integer> distinctElements = new HashSet<>();
+
+        // Generate all possible subarrays of size K
+        for (int start = 0; start < arr.length; start++) {
+            long windowSum = 0L;
+
+            // Expand subarray starting at 'start'
+            for (int end = start; end < arr.length; end++) {
+                // Add current element to sum and set
+                windowSum += arr[end];
+                distinctElements.add(arr[end]);
+
+                int subarrayLength = end - start + 1;
+
+                // Process only subarrays of exact size k
+                if (subarrayLength == k) {
+                    // If all elements are distinct, update maximum sum
+                    if (isDistinctSubarray(distinctElements, k)) {
+                        maxDistinctSubarraySum = Math.max(maxDistinctSubarraySum, windowSum);
+                    }
+
+                    break; // Move to the next starting index
+                }
+            }
+
+            // Clear the set for the next subarray starting position
+            distinctElements.clear();
+        }
+
+        return maxDistinctSubarraySum;
+    }
+
+    /**
+     * Checks whether the current subarray contains only distinct elements.
+     *
+     * Logic:
+     * - If the size of the Set equals the window size k,
+     *   then all elements in the subarray are unique.
+     */
+    private boolean isDistinctSubarray(Set<Integer> distinctElements, int windowSize) {
+        return distinctElements.size() == windowSize;
+    }
+}
+
+
+//Better Approach
+
+class Solution {
+    public long maximumSubarraySum(int[] arr, int k) {
+        // Stores frequency of elements in the current window
+        Map<Integer, Integer> freqMap = new HashMap<>();
+
+        long windowSum = 0L; // Sum of elements in the current window
+        long maxDistinctSubarraySum = 0L;
+        int windowStart = 0;
+        int windowEnd = 0;
+
+        /*
+         * Build the first window of size k:
+         * - Add elements to the sum
+         * - Update their frequencies in the map
+         */
+        while (windowEnd < k) {
+            windowSum += arr[windowEnd];
+            freqMap.put(arr[windowEnd], freqMap.getOrDefault(arr[windowEnd], 0) + 1);
+            windowEnd++;
+        }
+
+        // Check if the first window contains all distinct elements
+        if (isDistinctSubarray(freqMap)) {
+            maxDistinctSubarraySum = Math.max(maxDistinctSubarraySum, windowSum);
+        }
+
+        /*
+         * Slide the window to process the second window
+         * and all subsequent windows.
+         */
+        while (windowEnd < arr.length) {
+            /*
+             * Remove the outgoing element (left boundary of window):
+             * - Decrease its frequency
+             * - Remove it from map if frequency becomes zero
+             * - Subtract its value from the sum
+             */
+            freqMap.put(arr[windowStart], freqMap.get(arr[windowStart]) - 1);
+
+            if (freqMap.get(arr[windowStart]) == 0) {
+                freqMap.remove(arr[windowStart]);
+            }
+
+            windowSum -= arr[windowStart++];
+
+            /*
+             * Add the incoming element (right boundary of window):
+             * - Increase its frequency
+             * - Add its value to the sum
+             */
+            freqMap.put(arr[windowEnd], freqMap.getOrDefault(arr[windowEnd], 0) + 1);
+
+            windowSum += arr[windowEnd++];
+
+            // If current window has all distinct elements, update the answer
+            if (isDistinctSubarray(freqMap)) {
+                maxDistinctSubarraySum = Math.max(maxDistinctSubarraySum, windowSum);
+            }
+        }
+
+        return maxDistinctSubarraySum;
+    }
+
+    /**
+     * Checks whether the current window contains only distinct elements.
+     *
+     * Logic:
+     * - If any element has frequency > 1,
+     *   the window is NOT distinct.
+     * - Otherwise, all elements are unique.
+     */
+    private boolean isDistinctSubarray(Map<Integer, Integer> freqMap) {
+        for (int freq : freqMap.values()) {
+            if (freq > 1) {
+                return false;
+            }
+        }
+        return true;
+    }
+}
+
+
+//Optimal Approach
+
+class Solution {
+    public long maximumSubarraySum(int[] arr, int k) {
+        Map<Integer, Integer> freqMap = new HashMap<>();
+
+        long windowSum = 0L;
+        long maxDistinctSubarraySum = 0L;
+
+        int windowStart = 0;
+        int windowEnd = 0;
+
+        /*
+         * Tracks how many duplicate occurrences exist in the window.
+         *
+         * Meaning:
+         * - If an element appears twice, duplicatesInWindow increases by 1.
+         * - If an element appears three times, duplicatesInWindow increases again by 1.
+         *
+         * Window is valid (all distinct) ONLY when duplicatesInWindow == 0.
+         */
+        int duplicatesInWindow = 0;
+
+        while (windowEnd < k) {
+            windowSum += arr[windowEnd];
+
+            freqMap.put(arr[windowEnd], freqMap.getOrDefault(arr[windowEnd], 0) + 1);
+
+            // If frequency becomes > 1, a duplicate is introduced
+            if (freqMap.get(arr[windowEnd]) > 1) {
+                duplicatesInWindow++;
+            }
+
+            windowEnd++;
+        }
+
+        // If first window has all distinct elements, update answer
+        if (duplicatesInWindow == 0) {
+            maxDistinctSubarraySum = Math.max(maxDistinctSubarraySum, windowSum);
+        }
+
+        while (windowEnd < arr.length) {
+            /*
+            * OUTGOING ELEMENT (leaving the window)
+            * ------------------------------------
+            * If the frequency of the outgoing element is greater than 1,
+            * it means this element was contributing to a duplicate in the window.
+            *
+            * Example:
+            * Window = [2, 3, 2, 3], k = 4
+            * Frequencies → {2=2, 3=2}
+            * duplicatesInWindow = 2   // both 2 and 3 are duplicated
+            *
+            * When the window slides, element '2' leaves the window.
+            * Since its frequency was greater than 1, removing it
+            * eliminates one duplicate occurrence.
+            *
+            * After removal (assuming the incoming element is unique):
+            * Window might look like → [3, 2, 3, x]
+            * Frequencies → {3=2, 2=1, x=1}
+            * duplicatesInWindow = 1   // only '3' remains duplicated
+            *
+            * Hence, whenever an outgoing element has frequency > 1,
+            * removing it reduces the duplicate count by exactly 1.
+            */
+            if (freqMap.get(arr[windowStart]) > 1) {
+                duplicatesInWindow--;
+            }
+
+            freqMap.put(arr[windowStart], freqMap.get(arr[windowStart]) - 1);
+
+            // Remove key if frequency becomes zero
+            if (freqMap.get(arr[windowStart]) == 0) {
+                freqMap.remove(arr[windowStart]);
+            }
+
+            windowSum -= arr[windowStart++];
+
+            /*
+             * INCOMING ELEMENT (entering the window)
+             * -------------------------------------
+             * If its frequency becomes > 1 after adding,
+             * a new duplicate is introduced.
+             */
+            freqMap.put(arr[windowEnd], freqMap.getOrDefault(arr[windowEnd], 0) + 1);
+
+            if (freqMap.get(arr[windowEnd]) > 1) {
+                duplicatesInWindow++;
+            }
+
+            windowSum += arr[windowEnd++];
+
+            // If window is valid (all distinct), update answer
+            if (duplicatesInWindow == 0) {
+                maxDistinctSubarraySum = Math.max(maxDistinctSubarraySum, windowSum);
+            }
+        }
+
+        return maxDistinctSubarraySum;
+    }
+}
