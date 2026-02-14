@@ -1,0 +1,340 @@
+//Bruteforce Approach
+
+class Solution {
+    public int[] getAverages(int[] arr, int k) {
+        // Result array storing k-radius averages
+        int[] avgs = new int[arr.length];
+
+        // Treat each index as the CENTER of a window
+        for (int i = 0; i < arr.length; i++) {
+            int avg = -1; // default value when window is invalid
+
+            // Check whether window [i-k, i+k] lies completely inside the array
+            if (isValidWindow(i, k, arr.length)) {
+                //Computes the average of elements in the range [idx-k, idx+k]
+                avg = getWindowAvg(arr, i, k);
+            }
+
+            avgs[i] = avg;
+        }
+
+        return avgs;
+    }
+
+    private boolean isValidWindow(int idx, int k, int n) {
+        return idx - k >= 0 && idx + k < n;
+    }
+
+    private int getWindowAvg(int[] arr, int idx, int k) {
+        int windowSize = 2 * k + 1;
+        long windowSum = 0;
+
+        // Sum all elements inside the radius window
+        for (int i = idx - k; i <= idx + k; i++) {
+            windowSum += arr[i];
+        }
+
+        // Integer division as required by the problem
+        return (int) (windowSum / windowSize);
+    }
+}
+
+
+//Good Approach
+
+class Solution {
+    /**
+     * We need to compute the average of a window centered at index i:
+     *
+     * Window = [i - k ... i + k]
+     * Size   = 2k + 1
+     *
+     * Instead of computing the full window sum every time,
+     * we precompute sums of all k-sized windows using sliding window.
+     *
+     * Then the radius window sum becomes:
+     *
+     * left part  = sum of [i-k ... i-1]
+     * center     = arr[i]
+     * right part = sum of [i+1 ... i+k]
+     *
+     * So:
+     * totalWindowSum = leftWindowSum + arr[i] + rightWindowSum
+     */
+    public int[] getAverages(int[] arr, int k) {
+        /* 
+         * Edge case: if k is larger than array, no valid window possible from any index
+         * Ex: arr[]={3, 3} , k=3
+        */
+        if (k > arr.length) {
+            Arrays.fill(arr, -1);
+            return arr;
+        }
+
+        // Ex: arr[]={5, 3, 8} , k=0
+        if (k == 0) {
+            return arr;
+        }
+
+        /*
+         * Precompute all window sums of size k using sliding window.
+         * Key = window start index
+         * Value = sum of k elements starting at that index
+         */
+        Map<Integer, Long> windowSums = getWindowsSum(arr, k);
+
+        int windowSize = 2 * k + 1;
+
+        // Treat each index as the CENTER of radius window
+        for (int i = 0; i < arr.length; i++) {
+            int avg = -1;
+
+            // Only compute if full radius window fits in array
+            if (isValidWindow(i, k, arr.length)) {
+                // Sum of left k elements
+                long leftWindowSum = windowSums.get(i - k);
+
+                // Sum of right k elements
+                long rightWindowSum = windowSums.get(i + 1);
+
+                // Combine left + center + right
+                long windowSum = leftWindowSum + arr[i] + rightWindowSum;
+
+                avg = (int) (windowSum / windowSize);
+            }
+
+            arr[i] = avg;
+        }
+
+        return arr;
+    }
+
+    //Checks if a full radius window [i-k ... i+k] is inside array bounds.
+    private boolean isValidWindow(int idx, int k, int n) {
+        return idx - k >= 0 && idx + k < n;
+    }
+
+    private Map<Integer, Long> getWindowsSum(int[] arr, int k) {
+        Map<Integer, Long> windowSums = new HashMap<>();
+
+        int windowStart = 0;
+        int windowEnd = 0;
+        long windowSum = 0;
+
+        // Build first window
+        while (windowEnd < k) {
+            windowSum += arr[windowEnd++];
+        }
+
+        // Store sum of first k-sized window
+        windowSums.put(windowStart, windowSum);
+
+        // Slide the window across the array
+        while (windowEnd < arr.length) {
+            // Remove outgoing element
+            windowSum -= arr[windowStart++];
+            // Add incoming element
+            windowSum += arr[windowEnd++];
+            // Store sum of current k-sized window
+            windowSums.put(windowStart, windowSum);
+        }
+
+        return windowSums;
+    }
+}
+
+
+//Better Approach
+
+class Solution {
+    /**
+     * Key Observation:
+     * ------------------------------------------------------------
+     * The problem asks:
+     * "For every index i, compute average of elements from [i-k ... i+k]"
+     *
+     * That means we need average of a window of size:
+     *
+     * windowSize = 2*k + 1
+     *
+     * So instead of thinking center-wise,
+     * we can think window-wise:
+     *
+     * Step 1: Compute average of EVERY subarray of size (2*k+1)
+     * Step 2: Place each average at its correct CENTER index
+     *
+     * Example:
+     * arr = [7,4,3,9,1,8,5,2,6], k = 3
+     * windowSize = 7
+     *
+     * windows:
+     * [7,4,3,9,1,8,5] -> avg placed at index 3
+     * [4,3,9,1,8,5,2] -> avg placed at index 4
+     * [3,9,1,8,5,2,6] -> avg placed at index 5
+     *
+     * All other indices = -1
+     */
+    public int[] getAverages(int[] arr, int k) {
+        int windowSize = 2 * k + 1;
+
+        /* 
+           If window size is 1 -> every element is its own average 
+           Ex: arr[]={5, 3, 8} , k=0
+        */
+        if (windowSize == 1) {
+            return arr;
+        }
+
+        /* 
+         * Edge case: if windowSize is larger than array, no valid window possible from any index
+         * Ex: arr[]={3, 3} , k = 1
+        */
+        if (windowSize > arr.length) {
+            Arrays.fill(arr, -1);
+            return arr;
+        }
+
+        /*
+         * Compute average of every window of size (2*k+1)
+         * using sliding window
+         */
+        int[] windowsAvg = getWindowsAvg(arr, windowSize);
+
+        /*
+        * Map window averages to correct CENTER index
+        *
+        * IMPORTANT:
+        * ------------------------------------------------------------
+        * windowsAvg array contains averages of ONLY those subarrays
+        * whose full size (2*k+1) exists inside the original array.
+        *
+        * Number of valid centers == windowsAvg.length
+        *
+        * We increase pointer `j` ONLY when a valid center index exists.
+        *
+        * isValidWindow(i, k, n) guarantees:
+        *      i - k >= 0 AND i + k < n
+        *
+        * Meaning:
+        * A full window centered at index i exists.
+        *
+        * Therefore:
+        * Every time we access windowsAvg[j],
+        * we are guaranteed that j < windowsAvg.length
+        *
+        * So we NEVER go out of bounds in windowsAvg array.
+        */
+        int j = 0;
+
+        for (int i = 0; i < arr.length; i++) {
+            int avg = -1;
+
+            if (isValidWindow(i, k, arr.length)) {
+                avg = windowsAvg[j++];
+            }
+
+            arr[i] = avg;
+        }
+
+        return arr;
+    }
+
+    private boolean isValidWindow(int idx, int k, int n) {
+        return idx - k >= 0 && idx + k < n;
+    }
+
+    private int[] getWindowsAvg(int[] arr, int windowSize) {
+        int totalWindows = arr.length - windowSize + 1;
+        int[] windowsAvg = new int[totalWindows];
+
+        int windowStart = 0;
+        int windowEnd = 0;
+        long windowSum = 0;
+
+        while (windowEnd < windowSize) {
+            windowSum += arr[windowEnd++];
+        }
+
+        windowsAvg[windowStart] = (int) (windowSum / windowSize);
+
+        while (windowEnd < arr.length) {
+            windowSum -= arr[windowStart++];
+            windowSum += arr[windowEnd++];
+            windowsAvg[windowStart] = (int) (windowSum / windowSize);
+        }
+
+        return windowsAvg;
+    }
+}
+
+
+//Optimal Approach
+
+class Solution {
+    public int[] getAverages(int[] arr, int k) {
+        int windowSize = 2 * k + 1;
+
+        if (windowSize == 1) {
+            return arr;
+        }
+
+        int[] windowsAvg = new int[arr.length];
+        Arrays.fill(windowsAvg, -1);
+
+        if (windowSize > arr.length) {
+            return windowsAvg;
+        }
+
+        return getWindowsAvg(arr, k, windowsAvg);
+    }
+
+    private int[] getWindowsAvg(int[] arr, int k, int[] windowsAvg) {
+        int windowSize = 2 * k + 1;
+
+        int windowStart = 0;
+        int windowEnd = 0;
+        long windowSum = 0;
+
+        while (windowEnd < windowSize) {
+            windowSum += arr[windowEnd++];
+        }
+
+        /*
+        Every subarray of size (2*k + 1) always has its center exactly k positions
+        away from the right boundary of the window.
+        
+        Instead of computing all averages first and then placing them later,
+        we can directly place the average at the correct center index while sliding
+        the window.
+        
+        Since windowEnd always points to the element just after the window,
+        the actual last index of the window is (windowEnd - 1).
+        
+        Therefore:
+        center index = (windowEnd - 1) - k
+        
+        We initialize the result array with -1 because indices near the edges
+        cannot form a complete window of size (2*k + 1).
+        
+        Example:
+        arr = [7,4,3,9,1,8,5,2,6], k = 3
+        
+        Window [7,4,3,9,1,8,5] → center = index 3 → place avg at 3
+        Window [4,3,9,1,8,5,2] → center = index 4 → place avg at 4
+        Window [3,9,1,8,5,2,6] → center = index 5 → place avg at 5
+        */
+        windowsAvg[windowEnd - 1 - k] = (int) (windowSum / windowSize);
+
+        while (windowEnd < arr.length) {
+            windowSum -= arr[windowStart++];
+            windowSum += arr[windowEnd++];
+            windowsAvg[windowEnd - 1 - k] = (int) (windowSum / windowSize);
+        }
+
+        return windowsAvg;
+    }
+
+    private boolean isValidWindow(int idx, int k, int n) {
+        return idx - k >= 0 && idx + k < n;
+    }
+}
