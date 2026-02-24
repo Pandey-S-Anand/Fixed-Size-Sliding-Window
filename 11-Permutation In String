@@ -22,23 +22,23 @@ class Solution {
         if (str1.length() > str2.length()) {
             return false;
         }
-        
+
         // Frequency array for the current substring window
-        int[] freqArr = new int[26];
+        int[] windowFreqArr = new int[26];
 
         // Generate all possible substrings of str2
         for (int start = 0; start < str2.length(); start++) {
             // Expand substring starting at index 'start'
             for (int end = start; end < str2.length(); end++) {
                 // Add current character to frequency array
-                freqArr[str2.charAt(end) - 'a']++;
+                windowFreqArr[str2.charAt(end) - 'a']++;
 
                 int substringLength = end - start + 1;
 
                 // Process only substrings of exact length = str1.length()
                 if (substringLength == str1.length()) {
                     // Check if current substring is a permutation of str1
-                    if (containsPermutation(str1, freqArr)) {
+                    if (containsPermutation(str1, windowFreqArr)) {
                         return true;
                     }
 
@@ -48,7 +48,7 @@ class Solution {
             }
 
             // Reset frequency array for the next starting index
-            Arrays.fill(freqArr, 0);
+            Arrays.fill(windowFreqArr, 0);
         }
 
         return false;
@@ -70,15 +70,15 @@ class Solution {
      * If all characters of str1 are successfully matched,
      * the window contains a valid permutation.
      */
-    private boolean containsPermutation(String str, int[] freqArr) {
+    private boolean containsPermutation(String str, int[] windowFreqArr) {
         for (int i = 0; i < str.length(); i++) {
             int idx = str.charAt(i) - 'a';
 
-            if (freqArr[idx] == 0) {
+            if (windowFreqArr[idx] == 0) {
                 return false;
             }
 
-            freqArr[idx]--;
+            windowFreqArr[idx]--;
         }
 
         return true;
@@ -87,7 +87,7 @@ class Solution {
 
 
 
-//Good Approach
+//Better Approach
 
 class Solution {
     /**
@@ -124,22 +124,21 @@ class Solution {
 
         /*
         * Frequency array for the current window.
-        * freqArr[i] represents how many times character (char)('a' + i)
-        * appears in the current sliding window.
+        * windowFreqArr[i] represents how many times character (char)('a' + i)
+        * appears in the current window.
         */
-        int[] freqArr = new int[26];
+        int[] windowFreqArr = new int[26];
 
         /*
          * Build the first window of size = pattern.length()
          * Count frequencies of characters in the initial window.
          */
         while (windowEnd < windowSize) {
-            freqArr[text.charAt(windowEnd) - 'a']++;
-            windowEnd++;
+            windowFreqArr[text.charAt(windowEnd++) - 'a']++;
         }
 
         // Check if the first window is an anagram of pattern
-        if (isAnagram(pattern, freqArr)) {
+        if (isAnagram(pattern, windowFreqArr)) {
             return true;
         }
 
@@ -151,14 +150,14 @@ class Solution {
          */
         while (windowEnd < text.length()) {
             // Remove outgoing character
-            freqArr[text.charAt(windowStart) - 'a']--;
+            windowFreqArr[text.charAt(windowStart) - 'a']--;
             windowStart++;
 
             // Add incoming character
-            freqArr[text.charAt(windowEnd) - 'a']++;
+            windowFreqArr[text.charAt(windowEnd) - 'a']++;
 
             // Check if current window forms a permutation of pattern
-            if (isAnagram(pattern, freqArr)) {
+            if (isAnagram(pattern, windowFreqArr)) {
                 return true;
             }
 
@@ -183,154 +182,18 @@ class Solution {
     * - If all characters of the pattern are successfully matched,
     *   the current window is an anagram.
     */
-    private boolean isAnagram(String pattern, int[] freqArr) {
+    private boolean isAnagram(String pattern, int[] windowFreqArr) {
         // Clone to avoid mutating original frequency array
-        freqArr = freqArr.clone();
+        windowFreqArr = windowFreqArr.clone();
 
         for (int i = 0; i < pattern.length(); i++) {
             int idx = pattern.charAt(i) - 'a';
 
-            if (freqArr[idx] == 0) {
+            if (windowFreqArr[idx] == 0) {
                 return false;
             }
 
-            freqArr[idx]--;
-        }
-
-        return true;
-    }
-}
-
-
-
-//Better Approach
-
-class Solution {
-    public boolean checkInclusion(String pattern, String text) {
-        if (pattern.length() > text.length()) {
-            return false;
-        }
-
-        int windowStart = 0;
-        int windowEnd = 0;
-        int windowSize = pattern.length();
-
-        /*
-         * ------------------------------------------------------------
-         * What does patternFreqMap represent?
-         * ------------------------------------------------------------
-         * patternFreqMap keeps track of how many MORE times
-         * each character is still REQUIRED in the current window
-         * to form a valid anagram.
-         *
-         * Initially:
-         *   pattern = "aab"
-         *   map = {a=2, b=1}
-         *
-         * Interpretation:
-         * - a is required 2 more times
-         * - b is required 1 more time
-         */
-        Map<Character, Integer> patternFreqMap = new HashMap<>();
-
-        // Build frequency map from the pattern
-        for (int i = 0; i < pattern.length(); i++) {
-            char ch = pattern.charAt(i);
-            patternFreqMap.put(ch, patternFreqMap.getOrDefault(ch, 0) + 1);
-        }
-
-        /*
-         * Build the first window of size = pattern.length()
-         * Reduce frequency when pattern characters appear in window.
-         */
-        while (windowEnd < windowSize) {
-            char ch = text.charAt(windowEnd++);
-            if (patternFreqMap.containsKey(ch)) {
-                patternFreqMap.put(ch, patternFreqMap.get(ch) - 1);
-            }
-        }
-
-        // If all frequencies are zero → first window is an anagram
-        if (isAnagram(patternFreqMap)) {
-            return true;
-        }
-
-        while (windowEnd < text.length()) {
-            /*
-             * ------------------------------------------------------------
-             * OUTGOING CHARACTER (leaving the window)
-             * ------------------------------------------------------------
-             * When a character leaves the window:
-             * - If it belongs to the pattern, we INCREASE its count.
-             *
-             * Why?
-             * - That character is no longer contributing to the current window.
-             * - We now REQUIRE one more occurrence of it again to form an anagram.
-             */
-            char outgoing = text.charAt(windowStart);
-            if (patternFreqMap.containsKey(outgoing)) {
-                patternFreqMap.put(outgoing, patternFreqMap.get(outgoing) + 1);
-            }
-
-            windowStart++;
-
-            /*
-            * ------------------------------------------------------------
-            * INCOMING CHARACTER (entering the window)
-            * ------------------------------------------------------------
-            * When a character enters the window:
-            * - If it belongs to the pattern, we DECREASE its count.
-            *
-            * Why?
-            * - This character helps satisfy the anagram requirement.
-            */
-            char incoming = text.charAt(windowEnd);
-            if (patternFreqMap.containsKey(incoming)) {
-                patternFreqMap.put(incoming, patternFreqMap.get(incoming) - 1);
-            }
-
-            if (isAnagram(patternFreqMap)) {
-                return true;
-            }
-
-            windowEnd++;
-        }
-
-        return false;
-    }
-
-    /**
-     * Checks whether the current window is an anagram.
-     *
-     * An anagram exists when:
-     * - All character requirements are fully satisfied.
-     * - i.e., all values in the frequency map are exactly zero.
-     *
-     * NOTE:
-     * - Negative value means the window has MORE occurrences of this
-     *   character than required by the pattern.
-     * - Any positive value means some character is still missing.
-     *
-     * - Since the window size is FIXED and exactly equal to the pattern length:
-     *
-     *   If any CHARACTER OF THE PATTERN has a NEGATIVE frequency,
-     *   it means the window contains MORE occurrences of that character
-     *   than required by the pattern.
-     *
-     * - Because the total window size is fixed, this extra occurrence
-     *   must be taking the place of some OTHER CHARACTER OF THE PATTERN.
-     *
-     * - Hence, at least one other character of the pattern
-     *   will have a POSITIVE frequency (i.e., it is still missing).
-     *
-     * - Therefore, a valid anagram (permutation) exists
-     *   ONLY when all pattern character frequencies are exactly zero.
-    */
-    private boolean isAnagram(Map<Character, Integer> patternFreqMap) {
-        for (int freq : patternFreqMap.values()) {
-            if (freq != 0) {
-                return false;
-            }
+            windowFreqArr[idx]--;
         }
 
         return true;
@@ -370,8 +233,7 @@ class Solution {
          * Count frequencies of characters in this initial window.
          */
         while (windowEnd < windowSize) {
-            windowFreqArr[text.charAt(windowEnd) - 'a']++;
-            windowEnd++;
+            windowFreqArr[text.charAt(windowEnd++) - 'a']++;
         }
 
         // If first window's frequency matches the pattern, permutation found
@@ -402,11 +264,10 @@ class Solution {
      * Logic:
      * - If frequencies of ALL characters ('a' to 'z') are equal,
      *   then the two strings are anagrams of each other.
-     *
      */
-    private boolean areFrequenciesEqual(int[] freqArr1, int[] freqArr2) {
+    private boolean areFrequenciesEqual(int[] patternFreqArr, int[] windowFreqArr) {
         for (int i = 0; i < 26; i++) {
-            if (freqArr1[i] != freqArr2[i]) {
+            if (patternFreqArr[i] != windowFreqArr[i]) {
                 return false;
             }
         }
